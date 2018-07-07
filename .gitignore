@@ -1,0 +1,8 @@
+.DS_Store
+.idea/
+.ipynb_checkpoints/
+hooks/
+info/
+objects/
+refs/
+*.csv

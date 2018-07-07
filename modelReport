@@ -1,0 +1,462 @@
+#20180602
+验证集构造
+    1. 从训练集按照是否还款拆分成两个数据集A，B
+    2. 两个数据集分别用相同的随机数种子抽取20%，合并成为验证集
+    3. 剩下的部分作为训练集，训练模型计算AUC
+    4. 重复1，2，3，重复10次计算10个AUC结果，用均值作为最终的验证集结果
+模型参数：lgb_param = {'application':'binary', 'learning_rate':0.02, 'num_leaves':24, 'feature_fraction':0.5,
+                 'bagging_fraction':0.9, 'lambda_l1':0.1, 'lambda_l2':0.1, 'min_split_gain':0.01, 'is_unbalance':True,
+                 'metric':'auc'}
+num_iterations = 200
+模型1：用application_train里的所有数据作为特征，其中数据已填充空值，离散特征做one-hot编码
+    离线：avg - 0.753241, std - 0.003223
+    线上：0.721
+
+模型2：从模型1的特征里去掉"REG_REGION_NOT_LIVE_REGION","REG_REGION_NOT_WORK_REGION",
+    "LIVE_REGION_NOT_WORK_REGION","REG_CITY_NOT_LIVE_CITY","REG_CITY_NOT_WORK_CITY","LIVE_CITY_NOT_WORK_CITY"
+    离线：avg - 0.751764, std - 0.002682
+    线上：0.722
+
+模型3：从模型1的特征里去掉："APARTMENTS_AVG","BASEMENTAREA_AVG","YEARS_BEGINEXPLUATATION_AVG","YEARS_BUILD_AVG",
+    "COMMONAREA_AVG","ELEVATORS_AVG","ENTRANCES_AVG","FLOORSMAX_AVG","FLOORSMIN_AVG","LANDAREA_AVG",
+    "LIVINGAPARTMENTS_AVG","LIVINGAREA_AVG","NONLIVINGAPARTMENTS_AVG","NONLIVINGAREA_AVG","APARTMENTS_MODE",
+    "BASEMENTAREA_MODE","YEARS_BEGINEXPLUATATION_MODE","YEARS_BUILD_MODE","COMMONAREA_MODE","ELEVATORS_MODE",
+    "ENTRANCES_MODE","FLOORSMAX_MODE","FLOORSMIN_MODE","LANDAREA_MODE","LIVINGAPARTMENTS_MODE","LIVINGAREA_MODE",
+    "NONLIVINGAPARTMENTS_MODE","NONLIVINGAREA_MODE","APARTMENTS_MEDI","BASEMENTAREA_MEDI","YEARS_BEGINEXPLUATATION_MEDI",
+    "YEARS_BUILD_MEDI","COMMONAREA_MEDI","ELEVATORS_MEDI","ENTRANCES_MEDI","FLOORSMAX_MEDI","FLOORSMIN_MEDI","LANDAREA_MEDI",
+    "LIVINGAPARTMENTS_MEDI","LIVINGAREA_MEDI","NONLIVINGAPARTMENTS_MEDI","NONLIVINGAREA_MEDI","FONDKAPREMONT_MODE",
+    "HOUSETYPE_MODE","TOTALAREA_MODE","WALLSMATERIAL_MODE","EMERGENCYSTATE_MODE"
+    离线：avg - 0.751964, std - 0.004280
+    线上：0.718
+
+模型4：从模型1的特征里去掉: "FLAG_DOCUMENT_2","FLAG_DOCUMENT_3","FLAG_DOCUMENT_4","FLAG_DOCUMENT_5","FLAG_DOCUMENT_6",
+    "FLAG_DOCUMENT_7","FLAG_DOCUMENT_8","FLAG_DOCUMENT_9","FLAG_DOCUMENT_10","FLAG_DOCUMENT_11","FLAG_DOCUMENT_12",
+    "FLAG_DOCUMENT_13","FLAG_DOCUMENT_14","FLAG_DOCUMENT_15","FLAG_DOCUMENT_16","FLAG_DOCUMENT_17","FLAG_DOCUMENT_18",
+    "FLAG_DOCUMENT_19","FLAG_DOCUMENT_20","FLAG_DOCUMENT_21"
+    离线：avg - 0.752046, std - 0.004589
+    线上：0.720
+
+模型5：在模型1的基础上，调整参数，去掉样本和特征的fraction，增加特征："GOOD_MINUS_CREDIT", "GOOD_DIVIDE_CREDIT",
+    "CREDIT_DIVIDE_ANNUITY"
+    离线：avg - 0.756344, std - 0.005926
+    线上：0.738 (+0.015)
+
+结论：模型5的特征加入baseline特征集
+
+# 20180603
+
+模型1：在昨天模型5的基础上，增加特征："ADDRESS_NOT_MATCH_COUNT", "CITY_NOT_MATCH_COUNT", "INCOME_OCCUPATION_CITY_MEAN",
+    "CREDIT_OCCUPATION_CITY_MEAN", "ANNUITY_OCCUPATION_CITY_MEAN", "GOOD_PRICE_OCCUPATION_CITY_MEAN"
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.755615, experiment - 0.756306
+    std avg of baseline and experiemnt are : baseline - 0.003577, experiment - 0.003507
+    avg of experiment auc minus baseline auc is : 0.000691
+    std of experiment auc minus baseline auc is : 0.000388
+    线上：0.754 (+0.016)
+
+模型2：在昨天模型5的基础上，增加特征："INCOME_OCCUPATION_CITY_MEAN", "CREDIT_OCCUPATION_CITY_MEAN",
+    "ANNUITY_OCCUPATION_CITY_MEAN", "GOOD_PRICE_OCCUPATION_CITY_MEAN", "DOCUMENT_COUNT"
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.756805, experiment - 0.757382
+    std avg of baseline and experiemnt are : baseline - 0.002434, experiment - 0.002227
+    avg of experiment auc minus baseline auc is : 0.000577
+    std of experiment auc minus baseline auc is : 0.000365
+    线上： 0.752 (+0.014)
+
+模型3：在昨天模型5的基础上，增加特征：'NAME_EDUCATION_TYPE_TARGET_RATIO', 'OCCUPATION_TYPE_TARGET_RATIO',
+    'ORGANIZATION_TYPE_TARGET_RATIO', 'NAME_INCOME_TYPE_TARGET_RATIO'
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.754435, experiment - 0.755066
+    std avg of baseline and experiemnt are : baseline - 0.003814, experiment - 0.003801
+    avg of experiment auc minus baseline auc is : 0.000631
+    std of experiment auc minus baseline auc is : 0.000343
+    线上：0.754 (+0.016)
+
+模型4：在昨天模型5的基础上，增加特征：['ADDRESS_NOT_MATCH_COUNT', 'CITY_NOT_MATCH_COUNT', 'INCOME_OCCUPATION_CITY_MEAN',
+    'CREDIT_OCCUPATION_CITY_MEAN', 'ANNUITY_OCCUPATION_CITY_MEAN', 'GOOD_PRICE_OCCUPATION_CITY_MEAN',
+    'NAME_EDUCATION_TYPE_TARGET_RATIO', 'OCCUPATION_TYPE_TARGET_RATIO', 'ORGANIZATION_TYPE_TARGET_RATIO',
+    'NAME_INCOME_TYPE_TARGET_RATIO']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.754240, experiment - 0.755313
+    std avg of baseline and experiemnt are : baseline - 0.002946, experiment - 0.003197
+    avg of experiment auc minus baseline auc is : 0.001073
+    std of experiment auc minus baseline auc is : 0.000362
+    线上：0.754 (+0.016)
+
+结论：假设模型4出现过拟合，那么选择特征数量较少，过拟合概率较低（离线提升幅度较小），线上提高幅度大的特征组合，就是模型3的特征加到baseline特征中
+
+# 20180604
+
+1. 模型1：在昨天模型3的基础上，增加特征：['OCCUPATION_FAMILY_TARGET_RATIO']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.756951, experiment - 0.756897
+    std avg of baseline and experiemnt are : baseline - 0.001630, experiment - 0.001635
+    avg of experiment auc minus baseline auc is : -0.000054
+    std of experiment auc minus baseline auc is : 0.000167
+    线上：0.753 (-0.001)
+
+2. 模型2：在昨天模型3的基础上，增加特征：['INCOME_FAMILY_TARGET_RATIO', 'OCCUPATION_FAMILY_TARGET_RATIO', 'OCCUPATION_GENDER_TARGET_RATIO']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.757364, experiment - 0.757497
+    std avg of baseline and experiemnt are : baseline - 0.002276, experiment - 0.002203
+    avg of experiment auc minus baseline auc is : 0.000133
+    std of experiment auc minus baseline auc is : 0.000475
+    线上：0.751 (-0.003)
+
+3. 模型3：在昨天模型3的基础上，增加特征：['REGION_CITY_OCCUPATION_TARGET_RATIO', 'REGION_CITY_EDUCATION_TARGET_RATIO']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.756241, experiment - 0.756464
+    std avg of baseline and experiemnt are : baseline - 0.003424, experiment - 0.003236
+    avg of experiment auc minus baseline auc is : 0.000223
+    std of experiment auc minus baseline auc is : 0.000424
+    线上：0.755 (+0.001)
+
+4. 模型4：在昨天模型3的基础上，增加特征：['REGION_CITY_EDUCATION_TARGET_RATIO', 'REGION_CITY_OCCUPATION_TARGET_RATIO', 'REGION_EDUCATION_TARGET_RATIO']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.756286, experiment - 0.756439
+    std avg of baseline and experiemnt are : baseline - 0.003557, experiment - 0.003542
+    avg of experiment auc minus baseline auc is : 0.000153
+    std of experiment auc minus baseline auc is : 0.000307
+    线上：0.755 (+0.001)
+
+5. 模型5：在昨天模型3基础上，增加特征：['REGION_CITY_EDUCATION_TARGET_RATIO', 'REGION_CITY_OCCUPATION_TARGET_RATIO', 'REGION_OCCUPATION_TARGET_RATIO']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.756154, experiment - 0.756589
+    std avg of baseline and experiemnt are : baseline - 0.004087, experiment - 0.003886
+    avg of experiment auc minus baseline auc is : 0.000435
+    std of experiment auc minus baseline auc is : 0.000397
+    线上：0.755 (+0.001)
+
+# 20180605
+
+1. 模型1：修复训练数据，发现ext_source_x字段被误填空值，用前天的baseline特征
+    线上：0.753 (-0.001)
+   尽管效果下降，但是还是坚持保留这次修改
+
+2. 模型2：在今天模型1基础上，增加四个特征：['REGION_EDUCATION_TARGET_RATIO', 'REGION_CITY_EDUCATION_TARGET_RATIO',
+'REGION_OCCUPATION_TARGET_RATIO', 'REGION_CITY_OCCUPATION_TARGET_RATIO']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.760431, experiment - 0.760864
+    std avg of baseline and experiemnt are : baseline - 0.002711, experiment - 0.002450
+    avg of experiment auc minus baseline auc is : 0.000434
+    std of experiment auc minus baseline auc is : 0.000284
+    线上：0.754 (+0.001)
+
+20180607
+
+1. 模型1：在6.5的模型1基础上，增加'REGION_CITY_OCCUPATION_TARGET_RATIO'
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.756987, experiment - 0.757239
+    std avg of baseline and experiemnt are : baseline - 0.005332, experiment - 0.005244
+    avg of experiment auc minus baseline auc is : 0.000251
+    std of experiment auc minus baseline auc is : 0.000303
+    线上：0.753（持平）
+
+2. 模型2：在6.5的模型1基础上，增加['REGION_CITY_OCCUPATION_TARGET_RATIO', 'REGION_CITY_EDUCATION_TARGET_RATIO']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.759091, experiment - 0.759524
+    std avg of baseline and experiemnt are : baseline - 0.003970, experiment - 0.004011
+    avg of experiment auc minus baseline auc is : 0.000433
+    std of experiment auc minus baseline auc is : 0.000306
+    线上：0.754 (+0.001)
+
+3. 模型3：在6.5的模型1基础上，增加['REGION_CITY_EDUCATION_TARGET_RATIO', 'REGION_CITY_OCCUPATION_TARGET_RATIO',
+    'REGION_EDUCATION_TARGET_RATIO']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.758324, experiment - 0.758786
+    std avg of baseline and experiemnt are : baseline - 0.003041, experiment - 0.003002
+    avg of experiment auc minus baseline auc is : 0.000461
+    std of experiment auc minus baseline auc is : 0.000174
+    线上：0.754（+0.001）
+
+4. 模型4：在6.5的模型1基础上，增加['REGION_CITY_EDUCATION_TARGET_RATIO', 'REGION_CITY_OCCUPATION_TARGET_RATIO',
+    'REGION_OCCUPATION_TARGET_RATIO']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.757431, experiment - 0.757589
+    std avg of baseline and experiemnt are : baseline - 0.002213, experiment - 0.002233
+    avg of experiment auc minus baseline auc is : 0.000158
+    std of experiment auc minus baseline auc is : 0.000396
+    线上：0.754（+0.001）
+
+结论：感觉效果都不明显，先不加特征了
+
+EDA结论：
+直观上来说，贷款金额越高还款的压力越大，所以还款率越低，但是从数据上来看与这个完全相反
+可能从业务上来说，Home Credit是主打小额贷款，而且这些样本应该都是已经拿到公司贷款的样本（不然不会有label），
+在用户正式成为Home Credit的客户的过程中应该是有筛选的，而且公司会对金额高的用户审核
+TODO：因为对不同的贷款金额可能存在审核上的差异，与公司战略有关，是一个不可衡量因素，因此可以将用户按照贷款金额拆分成高档用户和低档用户（例如5W做分界线）拆分成两个模型
+
+["CONTRACT_CREDIT_RANK", "CONTRACT_INCOME_RANK", "CONTRACT_ANNUITY_RANK", "CONTRACT_GOODS_RANK"]
+这四个特征加进去以后离线效果变化非常微弱，说明循环贷款样本数量少，使得将循环贷款的贷款金额和现金贷款金额划分到同一刻度下也没有变化
+TODO：可以尝试按照贷款方式划分样本，这个也是和业务密切相关的
+
+bureau.csv 特征思考：
+CREDIT_ACTIVE：该信用记录的状态，可以计算该用户当前的逾期率
+CREDIT_CURRENCY：离散特征，发现同一个用户基本上就是一种currency，但是做one_hot以后效果不明显
+DAYS_CREDIT：该信用记录开始时间距离当前的application有多少天，未来可以尝试时延特征，因为距离越远的credit记录可能越不能反映一个人近期的信用请款
+CREDIT_DAY_OVERDUE：该credit记录从逾期开始到当前application一共经过了多少天。可以从非0均值，最大值，总数三个角度衡量用户的信用情况
+    (非0特征占比太低)
+DAYS_CREDIT_ENDDATE：暂时没想好
+DAYS_ENDDATE_FACT：该信用记录结束时间距离当前的application有多少天，未来可以尝试时延特征
+AMT_CREDIT_MAX_OVERDUE：最大欠款金额，反映用户在规定还款期内偿还了多少贷款，可以贷款金额先做差值（比值），再计算最大值（均值）
+CNT_CREDIT_PROLONG：信贷局给出该credit报告，延期了多少次。我猜想延期是个不好的信号，可以用最大值，均值等特征试试
+AMT_CREDIT_SUM：当前贷款金额，最大值，均值可以反映用户的贷款水平，进一步可以计算用户当前贷款金额与数次历史贷款金额的对比情况
+AMT_CREDIT_SUM_DEBT：当前的欠款金额，反映当前用户的欠款情况，不仅可以参考CNT_CREDIT_PROLONG构造特征。还能对所有历史欠款金额求和，表示
+                     用户当前已有的债务负担，再进一步可以和当前application贷款金额做对比（差值或者比值）
+AMT_CREDIT_SUM_LIMIT：计算总和，最大值，最小值，均值，方差等，因为额度的多少代表了用户在那个借贷结构的信用水平
+AMT_CREDIT_SUM_OVERDUE：当前已经逾期的金额，这部分金额不仅能代表用户的负担，而且增加了逾期的含义，可以和总欠款金额做对比（差值或者比值）（非0占比太低，不一定有用）
+CREDIT_TYPE：贷款类型，可以将该表生成的特征按照CREDIT_TYPE拆分成不同的部分，求与本次application里CREDIT_TYPE匹配的数据计算出来的特征（感觉可能性不大）
+DAYS_CREDIT_UPDATE：该CREDIT记录的最后一次更新时间是该application的前几天，感觉可以用它来过滤数据了，或者做时延特征
+AMT_ANNUITY：年金，这个没想好
+
+20180611
+
+1. 在6.5模型1基础上，增加特征：['CREDIT_ACTIVE_Closed', 'CREDIT_ACTIVE_Sold', 'CREDIT_ACTIVE_Active']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.757679, experiment - 0.758150
+    std avg of baseline and experiemnt are : baseline - 0.002095, experiment - 0.002122
+    avg of experiment auc minus baseline auc is : 0.000471
+    std of experiment auc minus baseline auc is : 0.000363
+    线上：0.754(+0.001)
+
+2. 在6.5模型1基础上，增加特征：['AMT_CREDIT_MAX_OVERDUE_SUM']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.754352, experiment - 0.754565
+    std avg of baseline and experiemnt are : baseline - 0.002147, experiment - 0.001937
+    avg of experiment auc minus baseline auc is : 0.000213
+    std of experiment auc minus baseline auc is : 0.000252
+    线上：
+    0.753(0.0)
+
+3. 在6.5模型1基础上，增加特征：['CREDIT_OVERDUE_RATIO', 'CREDIT_DIVIDE_OVERDUE_MEAN']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.757312, experiment - 0.757657
+    std avg of baseline and experiemnt are : baseline - 0.003191, experiment - 0.003118
+    avg of experiment auc minus baseline auc is : 0.000345
+    std of experiment auc minus baseline auc is : 0.000159
+    线上：0.754（+0.001）
+
+4. 在6.5模型1基础上，增加特征：['CREDIT_MINUX_OVERDUE_MAX', 'CREDIT_OVERDUE_RATIO', 'CREDIT_DIVIDE_OVERDUE_MAX']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.757591, experiment - 0.758328
+    std avg of baseline and experiemnt are : baseline - 0.004486, experiment - 0.004625
+    avg of experiment auc minus baseline auc is : 0.000737
+    std of experiment auc minus baseline auc is : 0.000235
+    线上：0.754（+0.001）
+
+5. 在6.5模型1基础上，增加特征：['CREDIT_DIVIDE_OVERDUE_MEAN', 'CREDIT_DIVIDE_OVERDUE_MAX', 'CREDIT_MINUX_OVERDUE_MAX', 'CREDIT_OVERDUE_RATIO', 'CREDIT_MINUX_OVERDUE_MEAN']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.758550, experiment - 0.759133
+    std avg of baseline and experiemnt are : baseline - 0.003446, experiment - 0.003337
+    avg of experiment auc minus baseline auc is : 0.000583
+    std of experiment auc minus baseline auc is : 0.000226
+    在线：0.754（+0.001）
+
+6. 在6.5模型1基础上，增加特征：['REGION_CITY_EDUCATION_TARGET_RATIO', 'REGION_CITY_OCCUPATION_TARGET_RATIO',
+    'REGION_EDUCATION_TARGET_RATIO', 'CREDIT_ACTIVE_Closed', 'CREDIT_ACTIVE_Sold', 'CREDIT_ACTIVE_Active',
+                        'CREDIT_MINUX_OVERDUE_MAX', 'CREDIT_OVERDUE_RATIO', 'CREDIT_DIVIDE_OVERDUE_MAX']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.759765, experiment - 0.761116
+    std avg of baseline and experiemnt are : baseline - 0.002614, experiment - 0.002505
+    avg of experiment auc minus baseline auc is : 0.001352
+    std of experiment auc minus baseline auc is : 0.000292
+    在线：0.755（+0.002）
+
+7. 在上一个模型基础上，将迭代次数从200调整到1000
+    离线训练集的AUC从0.772提升到0.815664
+    线上：0.765（+0.01）
+
+结论：目前增加特征让离线提升的幅度和线上保持一致，可以将模型6的特征加入到baseline中
+
+8. 在今天模型6基础上，增加特征：['REGION_CITY_EDUCATION_TARGET_RATIO', 'REGION_CITY_OCCUPATION_TARGET_RATIO', 'REGION_OCCUPATION_TARGET_RATIO']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.760419, experiment - 0.760382
+    std avg of baseline and experiemnt are : baseline - 0.004147, experiment - 0.004084
+    avg of experiment auc minus baseline auc is : -0.000037
+    std of experiment auc minus baseline auc is : 0.000210
+    线上：放弃
+
+20180619
+
+模型1：在11.6基础上，增加特征['AMT_CREDIT_SUM_MAX', 'AMT_CREDIT_SUM_MEDIAN', 'AMT_CREDIT_SUM_DEBT_MAX',
+    'AMT_CREDIT_SUM_DEBT_MIN', 'AMT_CREDIT_SUM_DEBT_MEAN', 'AMT_CREDIT_SUM_DEBT_STD', 'AMT_CREDIT_SUM_DEBT_SUM',
+    'HISTORY_DEBT_MINUS_CREDIT', 'HISTORY_DEBT_DIVIDE_CREDIT', 'AMT_CREDIT_SUM_LIMIT_STD']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.759301, experiment - 0.760092
+    std avg of baseline and experiemnt are : baseline - 0.003314, experiment - 0.003326
+    avg of experiment auc minus baseline auc is : 0.000791
+    std of experiment auc minus baseline auc is : 0.000256
+    线上：0.757（+0.002）
+
+模型2：在上一个模型基础上，将特征中涉及的bureau字段AMT_CREDIT_SUM_DEBT为空的样本删除
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.760326, experiment - 0.761009
+    std avg of baseline and experiemnt are : baseline - 0.003642, experiment - 0.003541
+    avg of experiment auc minus baseline auc is : 0.000683
+    std of experiment auc minus baseline auc is : 0.000358
+    线上：0.757(+0.002)
+
+模型3：在上一个模型基础上，将特征中涉及的bureau字段为空的样本删除，迭代次数1000
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.769298, experiment - 0.771007
+    std avg of baseline and experiemnt are : baseline - 0.003332, experiment - 0.002958
+    avg of experiment auc minus baseline auc is : 0.001708
+    std of experiment auc minus baseline auc is : 0.000998
+    线上：0.769（+0.012）
+
+模型4：在模型2基础上，将特征中涉及的bureau字段为空的样本删除
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.759558, experiment - 0.760401
+    std avg of baseline and experiemnt are : baseline - 0.002730, experiment - 0.002682
+    avg of experiment auc minus baseline auc is : 0.000843
+    std of experiment auc minus baseline auc is : 0.000203
+    线上：0.757（+0）
+
+TODO: 选择特征的时候，可以用较小的nround来做实验，但是在提交前的那个交叉验证可以将nround提高到1000，让模型收敛，这样可信度更高一些
+TODO: DAYS_EMPLOYED 大于0说明这个人没有工作；AMT_Credit > AMT_GOODS_PRICE 说明该用户购买了信用保险，如果不能按时还钱，HOME CREDIT可以找保险公司所要赔偿
+TODO: 参考https://www.kaggle.com/jsaguiar/updated-0-792-lb-lightgbm-with-simple-features/code的做法，将bureau的特征，按照 CREDIT_ACTIVE 拆分成两部分再生成特征
+TODO: 调参神器：https://github.com/fmfn/BayesianOptimization，贝叶斯优化，里面有个xgb的例子，可以改成LGB，这个可以精确到参数的小数点后6位
+TODO: 参考https://www.kaggle.com/shanth84/home-credit-bureau-data-feature-engineering 的做法添加特征，可以在此基础上进行深挖
+TODO：可以暂时把其他数据按照聚合后求均值的方式加上，作为基础信息
+
+20180623
+
+模型1：在6.19模型3基础上，增加['AMT_CREDIT_SUM_MEDIAN_ACTIVE', 'AMT_CREDIT_SUM_MAX_CLOSED', 'MONTHS_BALANCE_STD']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.772552, experiment - 0.772833
+    std avg of baseline and experiemnt are : baseline - 0.002966, experiment - 0.003122
+    avg of experiment auc minus baseline auc is : 0.000281
+    std of experiment auc minus baseline auc is : 0.000349
+    线上：0.770(+0.001)
+
+模型2：在6.19模型3基础上，增加['OVERDUE_DEBT_RATIO', 'DAYS_ENDDATE_DIFF_MEAN', 'DEBT_CREDIT_RATIO', 'DAYS_ENDDATE_DIFF_SUM']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.769350, experiment - 0.769677
+    std avg of baseline and experiemnt are : baseline - 0.003239, experiment - 0.003513
+    avg of experiment auc minus baseline auc is : 0.000327
+    std of experiment auc minus baseline auc is : 0.000501
+    线上：0.770(+0.001)
+
+模型3：在6.19模型3基础上，增加['AMT_CREDIT_SUM_MEDIAN_ACTIVE', 'AMT_CREDIT_SUM_MAX_CLOSED', 'MONTHS_BALANCE_STD',
+                        'OVERDUE_DEBT_RATIO', 'DAYS_ENDDATE_DIFF_MEAN', 'DEBT_CREDIT_RATIO', 'DAYS_ENDDATE_DIFF_SUM'
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.770461, experiment - 0.770923
+    std avg of baseline and experiemnt are : baseline - 0.002318, experiment - 0.002764
+    avg of experiment auc minus baseline auc is : 0.000461
+    std of experiment auc minus baseline auc is : 0.000747
+    线上：0.770(+0.001)
+
+增加模型3的特征到baseline
+
+20180630
+
+1. 在模型20180623模型基础上，增加了84个特征，来源是pos_cash_balance_data和credit_card_balance_data的连续值统计特征
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.773881, experiment - 0.780802
+    std avg of baseline and experiemnt are : baseline - 0.003128, experiment - 0.002960
+    avg of experiment auc minus baseline auc is : 0.006920
+    std of experiment auc minus baseline auc is : 0.000813
+    线上：0.779（+0.009）
+    (全量)
+
+2. 在上个模型基础上，增加30个统计特征，来源和上个模型相同
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.780617, experiment - 0.780960
+    std avg of baseline and experiemnt are : baseline - 0.002556, experiment - 0.002538
+    avg of experiment auc minus baseline auc is : 0.000343
+    std of experiment auc minus baseline auc is : 0.000497
+    线上：0.781 (+0.002)
+    (全量)
+
+3. 在上个模型基础上，增加54个统计特征，来源为previous_application_data的连续特征
+    AMT_ANNUITY_MAX,AMT_ANNUITY_MIN,AMT_ANNUITY_MEAN,AMT_ANNUITY_STD,AMT_ANNUITY_MEDIAN,AMT_ANNUITY_SUM,AMT_APPLICATION_MAX,AMT_APPLICATION_MIN,AMT_APPLICATION_MEAN,AMT_APPLICATION_STD,AMT_APPLICATION_MEDIAN,AMT_APPLICATION_SUM,AMT_CREDIT_MAX,AMT_CREDIT_MIN,AMT_CREDIT_MEAN,AMT_CREDIT_STD,AMT_CREDIT_MEDIAN,AMT_CREDIT_SUM,AMT_DOWN_PAYMENT_MAX,AMT_DOWN_PAYMENT_MIN,AMT_DOWN_PAYMENT_MEAN,AMT_DOWN_PAYMENT_STD,AMT_DOWN_PAYMENT_MEDIAN,AMT_DOWN_PAYMENT_SUM,AMT_GOODS_PRICE_MAX,AMT_GOODS_PRICE_MIN,AMT_GOODS_PRICE_MEAN,AMT_GOODS_PRICE_STD,AMT_GOODS_PRICE_MEDIAN,AMT_GOODS_PRICE_SUM,CNT_PAYMENT_MAX,CNT_PAYMENT_MIN,CNT_PAYMENT_MEAN,CNT_PAYMENT_STD,CNT_PAYMENT_MEDIAN,CNT_PAYMENT_SUM,DAYS_FIRST_DUE_MAX,DAYS_FIRST_DUE_MIN,DAYS_FIRST_DUE_MEAN,DAYS_FIRST_DUE_STD,DAYS_FIRST_DUE_MEDIAN,DAYS_FIRST_DUE_SUM,DAYS_LAST_DUE_MAX,DAYS_LAST_DUE_MIN,DAYS_LAST_DUE_MEAN,DAYS_LAST_DUE_STD,DAYS_LAST_DUE_MEDIAN,DAYS_LAST_DUE_SUM,DAYS_TERMINATION_MAX,DAYS_TERMINATION_MIN,DAYS_TERMINATION_MEAN,DAYS_TERMINATION_STD,DAYS_TERMINATION_MEDIAN,DAYS_TERMINATION_SU,
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.781929, experiment - 0.783956
+    std avg of baseline and experiemnt are : baseline - 0.002657, experiment - 0.002318
+    avg of experiment auc minus baseline auc is : 0.002026
+    std of experiment auc minus baseline auc is : 0.000747
+    线上：0.781（持平）
+    可能public和private有差别导致这个结果，所以还是全量
+
+
+20180701
+
+1. 在昨天模型3基础上，增加14个特征
+    ['CODE_REJECT_REASON_XAP', 'CODE_REJECT_REASON_HC', 'CODE_REJECT_REASON_LIMIT', 'CODE_REJECT_REASON_CLIENT', 'CODE_REJECT_REASON_SCOFR', 'CODE_REJECT_REASON_SCO', 'CODE_REJECT_REASON_XNA', 'CODE_REJECT_REASON_VERIF', 'CODE_REJECT_REASON_SYSTEM', 'NAME_YIELD_GROUP_middle', 'NAME_YIELD_GROUP_low_action', 'NAME_YIELD_GROUP_high', 'NAME_YIELD_GROUP_low_normal', 'NAME_YIELD_GROUP_XNA']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.781183, experiment - 0.782182
+    std avg of baseline and experiemnt are : baseline - 0.003793, experiment - 0.003830
+    avg of experiment auc minus baseline auc is : 0.000999
+    std of experiment auc minus baseline auc is : 0.000459
+    线上：
+    0.782
+    （全量）
+
+TODO: 发现几个特征：3个source的重要度非常高，如何进行深挖，可以计算这三者的关系，可以基于下面的再拓展
+    df['NEW_EXT_SOURCES_MEAN'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']].mean(axis=1)
+    df['NEW_SCORES_STD'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']].std(axis=1)
+    df['NEW_SCORES_STD'] = df['NEW_SCORES_STD'].fillna(df['NEW_SCORES_STD'].mean())
+    可以调整一下，因为三个机构的评分标准可能不一样，所以数据分布不一致，因此将EXT_SOURCE_x转换成该分数在所有样本中的分为点（0.01为间隔）
+TODO: 尝试几个特征：时间的比值，感觉不太靠谱，没有数据证明除法的两端的两个时间都大，和都小是一类的
+    df['NEW_CAR_TO_BIRTH_RATIO'] = df['OWN_CAR_AGE'] / df['DAYS_BIRTH']
+    df['NEW_CAR_TO_EMPLOY_RATIO'] = df['OWN_CAR_AGE'] / df['DAYS_EMPLOYED']
+    df['NEW_PHONE_TO_BIRTH_RATIO'] = df['DAYS_LAST_PHONE_CHANGE'] / df['DAYS_BIRTH']
+    df['NEW_PHONE_TO_EMPLOY_RATIO'] = df['DAYS_LAST_PHONE_CHANGE'] / df['DAYS_EMPLOYED']
+
+2. 在上个模型基础上，增加36个特征
+    ['NUM_INSTALMENT_VERSION_MAX', 'NUM_INSTALMENT_VERSION_MIN', 'NUM_INSTALMENT_VERSION_MEAN', 'NUM_INSTALMENT_VERSION_STD', 'NUM_INSTALMENT_VERSION_MEDIAN', 'NUM_INSTALMENT_VERSION_SUM', 'NUM_INSTALMENT_NUMBER_MAX', 'NUM_INSTALMENT_NUMBER_MIN', 'NUM_INSTALMENT_NUMBER_MEAN', 'NUM_INSTALMENT_NUMBER_STD', 'NUM_INSTALMENT_NUMBER_MEDIAN', 'NUM_INSTALMENT_NUMBER_SUM', 'DAYS_INSTALMENT_MAX', 'DAYS_INSTALMENT_MIN', 'DAYS_INSTALMENT_MEAN', 'DAYS_INSTALMENT_STD', 'DAYS_INSTALMENT_MEDIAN', 'DAYS_INSTALMENT_SUM', 'DAYS_ENTRY_PAYMENT_MAX', 'DAYS_ENTRY_PAYMENT_MIN', 'DAYS_ENTRY_PAYMENT_MEAN', 'DAYS_ENTRY_PAYMENT_STD', 'DAYS_ENTRY_PAYMENT_MEDIAN', 'DAYS_ENTRY_PAYMENT_SUM', 'AMT_INSTALMENT_MAX', 'AMT_INSTALMENT_MIN', 'AMT_INSTALMENT_MEAN', 'AMT_INSTALMENT_STD', 'AMT_INSTALMENT_MEDIAN', 'AMT_INSTALMENT_SUM', 'AMT_PAYMENT_MAX', 'AMT_PAYMENT_MIN', 'AMT_PAYMENT_MEAN', 'AMT_PAYMENT_STD', 'AMT_PAYMENT_MEDIAN', 'AMT_PAYMENT_SUM']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.782574, experiment - 0.785239
+    std avg of baseline and experiemnt are : baseline - 0.002729, experiment - 0.002752
+    avg of experiment auc minus baseline auc is : 0.002665
+    std of experiment auc minus baseline auc is : 0.000539
+    线上：0.786（+0.004）
+    （全量）
+
+3. 在上个模型基础上，增加3个特征['new_EXT_SOURCE_MEAN', 'new_EXT_SOURCE_MEDIAN', 'new_EXT_SOURCE_SUM']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.784196, experiment - 0.784013
+    std avg of baseline and experiemnt are : baseline - 0.003121, experiment - 0.003213
+    avg of experiment auc minus baseline auc is : -0.000183
+    std of experiment auc minus baseline auc is : 0.000263
+    线上：0.787（+0.001）
+    （全量）
+
+
+TODO: DAYS_ENDDATE_FACT：该信用记录结束时间距离当前的application有多少天，未来可以尝试时延特征
+TODO: previous_application可以深挖一下，用异常值检测，或者是类似application_train的特征构造方法，因为previous和application_train的匹配度很高，说明训练和预测集大多数是在HOME CREDIT有历史的用户 (具体参考特征重要度截图)
+    1. data["GOOD_DIVIDE_CREDIT"] = data["AMT_GOODS_PRICE"] * 1.0 / data["AMT_CREDIT"]
+    2. data["GOOD_MINUS_CREDIT"] = data["AMT_GOODS_PRICE"] - data["AMT_CREDIT"]
+    3. result["DEBT_CREDIT_RATIO"] = result["AMT_CREDIT_SUM_DEBT_SUM"] * 1.0 / result["AMT_CREDIT_SUM_SUM"] (bureau的特征)
+    4. AMT_ANNUITY
+    5. AMT_CREDIT
+    6. AMT_GOOD_PRICE
+    7. data["HISTORY_DEBT_MINUS_CREDIT"] = data["AMT_CREDIT_SUM_DEBT_SUM"] - data["AMT_CREDIT"]
+    (done，调研一下DAYS_TERMINATION小于0代表什么)
+    8. DAYS_LAST_DUE_1ST_VERSION 和 DAYS_FIRST_DUE 的差值；DAYS_FIRST_DRAWING 和 DAYS_LAST_DUE_1ST_VERSION的差值
+    9.
+
+
+20180703
+
+1. 在昨天模型3基础上，增加['NAME_CONTRACT_STATUS_Approved_previous', 'NAME_CONTRACT_STATUS_Refused_previous', 'NAME_CONTRACT_STATUS_Canceled_previous']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.783920, experiment - 0.783623
+    std avg of baseline and experiemnt are : baseline - 0.003637, experiment - 0.003588
+    avg of experiment auc minus baseline auc is : -0.000296
+    std of experiment auc minus baseline auc is : 0.000321
+    线上：
+    0.785（-0.002）
+
+20180707
+
+1. 在0701模型3基础上，增加['GOOD_MINUS_CREDIT_MAX', 'GOOD_MINUS_CREDIT_MIN', 'GOOD_MINUS_CREDIT_MEAN', 'GOOD_MINUS_CREDIT_STD', 'GOOD_MINUS_CREDIT_MEDIAN', 'GOOD_MINUS_CREDIT_SUM', 'PREVIOUS_APP_DEBT_DIVIDE_CREDIT', 'PREVIOUS_APP_DEBT_MINUS_CREDIT', 'AMT_GOODS_PRICE_DEBT_MAX', 'AMT_GOODS_PRICE_DEBT_MIN', 'AMT_GOODS_PRICE_DEBT_MEAN', 'AMT_GOODS_PRICE_DEBT_STD', 'AMT_GOODS_PRICE_DEBT_MEDIAN', 'AMT_GOODS_PRICE_DEBT_SUM']
+    离线：
+    auc avg of baseline and experiemnt are : baseline - 0.784620, experiment - 0.785013
+    std avg of baseline and experiemnt are : baseline - 0.002607, experiment - 0.002644
+    avg of experiment auc minus baseline auc is : 0.000393
+    std of experiment auc minus baseline auc is : 0.000287
+    线上：
+    0.785（-0.002）
+
+
